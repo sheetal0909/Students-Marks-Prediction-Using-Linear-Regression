@@ -1,30 +1,53 @@
-import streamlit as st
-import pickle
+import numpy as np
+import pandas as pd
+from flask import Flask, request, render_template
+import joblib
 
-# Load the trained model
-model = pickle.load(open(
-    r"C:\Users\sheet\AVSCode\Machine Learning\Regression\linear_regression_model.pkl",
-    "rb"
-))
-
-# App title
-st.title("Salary Prediction App")
-
-# Description
-st.write(
-    "This app predicts the salary based on years of experience "
-    "using a simple linear regression model."
+app = Flask(
+    __name__,
+    template_folder=r"C:\Users\sheet\Desktop\Full Stack Data Science\Student Informatiom\templates",
+    static_folder=r"C:\Users\sheet\Desktop\Full Stack Data Science\Student Informatiom\static"
 )
 
-# Get years of experience
-years = st.number_input(
-    "Enter years of experience:",
-    min_value=0.0,
-    max_value=50.0,
-    value=1.0
-)
+df = pd.DataFrame()
 
-# Prediction button
-if st.button("Predict Salary"):
-    prediction = model.predict([[years]])
-    st.success(f"Predicted Salary: ${prediction[0]:,.2f}")
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    global df
+
+    input_features = [int(x) for x in request.form.values()]
+    features_value = np.array(input_features)
+
+    if input_features[0] < 0 or input_features[0] > 24:
+        return render_template(
+            'index.html',
+            prediction_text='Please enter valid hours between 1 to 24 if you live on the Earth'
+        )
+
+    output = model.predict([features_value])[0].round(2)
+
+    df = pd.concat([
+        df,
+        pd.DataFrame({
+            'Study Hours': input_features,
+            'Predicted Output': [output]
+        })
+    ], ignore_index=True)
+
+    print(df)
+    df.to_csv('smp_data_from_app.csv')
+
+    return render_template(
+        'index.html',
+        prediction_text='You will get [{}%] marks, when you do study [{}] hours per day '.format(
+            output, int(features_value[0])
+        )
+    )
+
+
+if __name__ == "__main__":
+    app.run(host='127.0.0.1')
